@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
 *                 SOFA, Simulation Open-Framework Architecture                *
 *                    (c) 2006 INRIA, USTL, UJF, CNRS, MGH                     *
 *                                                                             *
@@ -19,60 +19,55 @@
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
 ******************************************************************************/
-#include <sofa/component/odesolver/init.h>
+#include <sofa/core/IntrusiveObject.h>
+#include <gtest/gtest.h>
+#include <sofa/core/sptr.h>
 
-#include <sofa/component/odesolver/backward/init.h>
-#include <sofa/component/odesolver/forward/init.h>
 
-#include <sofa/core/ObjectFactory.h>
-#include <sofa/helper/system/PluginManager.h>
-#include <sofa/Modules.h>
-
-namespace sofa::component::odesolver
+class DummyIntrusiveObject : public sofa::core::IntrusiveObject
 {
-    
-extern "C" {
-    SOFA_EXPORT_DYNAMIC_LIBRARY void initExternalModule();
-    SOFA_EXPORT_DYNAMIC_LIBRARY const char* getModuleName();
-    SOFA_EXPORT_DYNAMIC_LIBRARY const char* getModuleVersion();
-    SOFA_EXPORT_DYNAMIC_LIBRARY void registerObjects(sofa::core::ObjectFactory* factory);
-}
+public:
+    DummyIntrusiveObject() = default;
+    explicit DummyIntrusiveObject(const std::function<void()>& _destructorCallback)
+        : destructorCallback(_destructorCallback) {}
 
-void initExternalModule()
-{
-    init();
-}
-
-const char* getModuleName()
-{
-    return MODULE_NAME;
-}
-
-const char* getModuleVersion()
-{
-    return MODULE_VERSION;
-}
-
-void registerObjects(sofa::core::ObjectFactory* factory)
-{
-    factory->registerObjectsFromPlugin(Sofa.Component.ODESolver.Backward);
-    factory->registerObjectsFromPlugin(Sofa.Component.ODESolver.Forward);
-}
-
-void init()
-{
-    static bool first = true;
-    if (first)
+    ~DummyIntrusiveObject() override
     {
-        // force dependencies at compile-time
-        sofa::component::odesolver::backward::init();
-        sofa::component::odesolver::forward::init();
-
-        // make sure that this plugin is registered into the PluginManager
-        sofa::helper::system::PluginManager::getInstance().registerPlugin(MODULE_NAME);
-
-        first = false;
+        destructorCallback();
     }
+
+private:
+    std::function<void()> destructorCallback;
+};
+
+
+
+TEST(IntrusiveObject, IsDestructorCalled)
+{
+    std::size_t nbTimesDestructorCalled = 0;
+    {
+        sofa::core::sptr<DummyIntrusiveObject> dummy(new DummyIntrusiveObject([&nbTimesDestructorCalled]()
+        {
+            nbTimesDestructorCalled++;
+        }));
+    }
+    EXPECT_EQ(1, nbTimesDestructorCalled);
 }
 
-} // namespace sofa::component::odesolver
+
+TEST(IntrusiveObject, Copy)
+{
+    std::size_t nbTimesDestructorCalled = 0;
+    {
+        sofa::core::sptr<DummyIntrusiveObject> dummy0;
+        {
+            sofa::core::sptr<DummyIntrusiveObject> dummy(new DummyIntrusiveObject([&nbTimesDestructorCalled]()
+            {
+                nbTimesDestructorCalled++;
+            }));
+
+            dummy0 = dummy;
+        }
+    }
+    EXPECT_EQ(1, nbTimesDestructorCalled);
+}
