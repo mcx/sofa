@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
 *                 SOFA, Simulation Open-Framework Architecture                *
 *                    (c) 2006 INRIA, USTL, UJF, CNRS, MGH                     *
 *                                                                             *
@@ -19,43 +19,55 @@
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
 ******************************************************************************/
-#pragma once
-
-#include <sofa/config.h>
-
-#define SOFATYPE_VERSION @PROJECT_VERSION@
-
-#ifdef SOFA_BUILD_SOFA_TYPE
-#  define SOFA_TARGET @PROJECT_NAME@
-#  define SOFA_TYPE_API SOFA_EXPORT_DYNAMIC_LIBRARY
-#else
-#  define SOFA_TYPE_API SOFA_IMPORT_DYNAMIC_LIBRARY
-#endif
+#include <sofa/core/IntrusiveObject.h>
+#include <gtest/gtest.h>
+#include <sofa/core/sptr.h>
 
 
-#ifdef SOFA_BUILD_SOFA_TYPE
-#define SOFA_ATTRIBUTE_DISABLED__RGBACOLOR_AS_FIXEDARRAY()
-#else
-#define SOFA_ATTRIBUTE_DISABLED__RGBACOLOR_AS_FIXEDARRAY() \
-    SOFA_ATTRIBUTE_DISABLED( \
-        "v23.12", "v24.06", \
-        "RGBAColor does not inherit anymore from sofa::type::fixed_array. Use respective functions accordingly.")
-#endif
+class DummyIntrusiveObject : public sofa::core::IntrusiveObject
+{
+public:
+    DummyIntrusiveObject() = default;
+    explicit DummyIntrusiveObject(const std::function<void()>& _destructorCallback)
+        : destructorCallback(_destructorCallback) {}
 
-#ifdef SOFA_BUILD_SOFA_TYPE
-#define SOFA_ATTRIBUTE_DISABLED__BOUNDINGBOX_TYPO()
-#else
-#define SOFA_ATTRIBUTE_DISABLED__BOUNDINGBOX_TYPO() \
-    SOFA_ATTRIBUTE_DISABLED( \
-        "v24.12", "v25.06", \
-        "Use isNegligible instead.")
-#endif
+    ~DummyIntrusiveObject() override
+    {
+        destructorCallback();
+    }
 
-#ifdef SOFA_BUILD_SOFA_TYPE
-#define SOFA_ATTRIBUTE_DEPRECATED__IS_CONTAINER()
-#else
-#define SOFA_ATTRIBUTE_DEPRECATED__IS_CONTAINER() \
-    SOFA_ATTRIBUTE_DISABLED( \
-        "v25.06", "v25.12", \
-        "Use std::ranges::ranges concept instead.")
-#endif
+private:
+    std::function<void()> destructorCallback;
+};
+
+
+
+TEST(IntrusiveObject, IsDestructorCalled)
+{
+    std::size_t nbTimesDestructorCalled = 0;
+    {
+        sofa::core::sptr<DummyIntrusiveObject> dummy(new DummyIntrusiveObject([&nbTimesDestructorCalled]()
+        {
+            nbTimesDestructorCalled++;
+        }));
+    }
+    EXPECT_EQ(1, nbTimesDestructorCalled);
+}
+
+
+TEST(IntrusiveObject, Copy)
+{
+    std::size_t nbTimesDestructorCalled = 0;
+    {
+        sofa::core::sptr<DummyIntrusiveObject> dummy0;
+        {
+            sofa::core::sptr<DummyIntrusiveObject> dummy(new DummyIntrusiveObject([&nbTimesDestructorCalled]()
+            {
+                nbTimesDestructorCalled++;
+            }));
+
+            dummy0 = dummy;
+        }
+    }
+    EXPECT_EQ(1, nbTimesDestructorCalled);
+}

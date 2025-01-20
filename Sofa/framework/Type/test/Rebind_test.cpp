@@ -19,63 +19,41 @@
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
 ******************************************************************************/
-#include <sofa/component/collision/init.h>
+#include <sofa/type/trait/Rebind.h>
+#include <sofa/type/vector.h>
 
-#include <sofa/component/collision/geometry/init.h>
-#include <sofa/component/collision/detection/init.h>
-#include <sofa/component/collision/response/init.h>
+static_assert(sofa::type::CanTypeRebind<sofa::type::vector<float>, int>);
+static_assert(sofa::type::CanTypeRebind<sofa::type::vector<int>, int>);
 
-#include <sofa/helper/system/PluginManager.h>
-#include <sofa/core/ObjectFactory.h>
-#include <sofa/Modules.h>
+static_assert(
+    std::is_same_v<
+        sofa::type::rebind_to<sofa::type::vector<float>, int>,
+        sofa::type::vector<int>
+    >);
+static_assert(
+    std::is_same_v<
+        sofa::type::rebind_to<sofa::type::vector<int>, int>,
+        sofa::type::vector<int>
+    >);
 
-namespace sofa::component::collision
+template<class T>
+struct DummyNoRebind{};
+
+static_assert(!sofa::type::CanTypeRebind<DummyNoRebind<float>, int>);
+
+static_assert(
+    std::is_same_v<
+        sofa::type::rebind_to<DummyNoRebind<float>, int>,
+        DummyNoRebind<int>
+    >);
+
+template<class T>
+struct DummyWithConstraintRebind
 {
+    template<class U>
+    requires std::is_integral_v<U>
+    using rebind_to = U;
+};
 
-extern "C" {
-    SOFA_EXPORT_DYNAMIC_LIBRARY void initExternalModule();
-    SOFA_EXPORT_DYNAMIC_LIBRARY const char* getModuleName();
-    SOFA_EXPORT_DYNAMIC_LIBRARY const char* getModuleVersion();
-    SOFA_EXPORT_DYNAMIC_LIBRARY void registerObjects(sofa::core::ObjectFactory* factory);
-}
-
-void initExternalModule()
-{
-    init();
-}
-
-const char* getModuleName()
-{
-    return MODULE_NAME;
-}
-
-const char* getModuleVersion()
-{
-    return MODULE_VERSION;
-}
-
-void registerObjects(sofa::core::ObjectFactory* factory)
-{
-    factory->registerObjectsFromPlugin(Sofa.Component.Collision.Geometry);
-    factory->registerObjectsFromPlugin(Sofa.Component.Collision.Detection);
-    factory->registerObjectsFromPlugin(Sofa.Component.Collision.Response);
-}
-
-void init()
-{
-    static bool first = true;
-    if (first)
-    {
-        // force dependencies at compile-time
-        sofa::component::collision::geometry::init();
-        sofa::component::collision::detection::init();
-        sofa::component::collision::response::init();
-
-        // make sure that this plugin is registered into the PluginManager
-        sofa::helper::system::PluginManager::getInstance().registerPlugin(MODULE_NAME);
-
-        first = false;
-    }
-}
-
-} // namespace sofa::component::collision
+static_assert(sofa::type::CanTypeRebind<DummyWithConstraintRebind<float>, int>);
+static_assert(!sofa::type::CanTypeRebind<DummyWithConstraintRebind<float>, std::string>);

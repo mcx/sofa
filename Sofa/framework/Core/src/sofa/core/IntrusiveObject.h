@@ -19,63 +19,37 @@
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
 ******************************************************************************/
-#include <sofa/component/collision/init.h>
+#pragma once
+#include <sofa/core/config.h>
+#include <atomic>
 
-#include <sofa/component/collision/geometry/init.h>
-#include <sofa/component/collision/detection/init.h>
-#include <sofa/component/collision/response/init.h>
-
-#include <sofa/helper/system/PluginManager.h>
-#include <sofa/core/ObjectFactory.h>
-#include <sofa/Modules.h>
-
-namespace sofa::component::collision
+namespace sofa::core
 {
 
-extern "C" {
-    SOFA_EXPORT_DYNAMIC_LIBRARY void initExternalModule();
-    SOFA_EXPORT_DYNAMIC_LIBRARY const char* getModuleName();
-    SOFA_EXPORT_DYNAMIC_LIBRARY const char* getModuleVersion();
-    SOFA_EXPORT_DYNAMIC_LIBRARY void registerObjects(sofa::core::ObjectFactory* factory);
-}
-
-void initExternalModule()
+/**
+ * The `IntrusiveObject` class implements an internal reference counting mechanism
+ * to manage its lifetime. It is intended to work with intrusive smart pointers like
+ * `boost::intrusive_ptr`.
+ */
+class SOFA_CORE_API IntrusiveObject
 {
-    init();
-}
+    std::atomic<int> ref_counter { 0 };
 
-const char* getModuleName()
-{
-    return MODULE_NAME;
-}
+    void addRef();
+    void release();
 
-const char* getModuleVersion()
-{
-    return MODULE_VERSION;
-}
-
-void registerObjects(sofa::core::ObjectFactory* factory)
-{
-    factory->registerObjectsFromPlugin(Sofa.Component.Collision.Geometry);
-    factory->registerObjectsFromPlugin(Sofa.Component.Collision.Detection);
-    factory->registerObjectsFromPlugin(Sofa.Component.Collision.Response);
-}
-
-void init()
-{
-    static bool first = true;
-    if (first)
+    friend inline void intrusive_ptr_add_ref(IntrusiveObject* p)
     {
-        // force dependencies at compile-time
-        sofa::component::collision::geometry::init();
-        sofa::component::collision::detection::init();
-        sofa::component::collision::response::init();
-
-        // make sure that this plugin is registered into the PluginManager
-        sofa::helper::system::PluginManager::getInstance().registerPlugin(MODULE_NAME);
-
-        first = false;
+        p->addRef();
     }
-}
 
-} // namespace sofa::component::collision
+    friend inline void intrusive_ptr_release(IntrusiveObject* p)
+    {
+        p->release();
+    }
+
+protected:
+    virtual ~IntrusiveObject() = default;
+};
+
+}
