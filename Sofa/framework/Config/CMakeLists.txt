@@ -85,6 +85,7 @@ set(HEADER_FILES
     ${SOFACONFIGSRC_ROOT}/config.h.in
     ${SOFACONFIGSRC_ROOT}/version.h.in
     ${SOFACONFIGSRC_ROOT}/url.h.in
+    ${SOFACONFIGSRC_ROOT}/Modules.h
 )
 set(SOURCE_FILES
     ${SOFACONFIGSRC_ROOT}/initSofaConfig.cpp # necessary to build a library
@@ -239,7 +240,7 @@ endif()
 ## Tracy
 option(SOFA_TRACY "Compile SOFA with the Tracy profiler client" OFF)
 if (SOFA_TRACY)
-    set(SOFA_TRACY_VERSION v0.9.1)
+    set(SOFA_TRACY_VERSION v0.11.1)
     include(FetchContent)
     option(TRACY_STATIC "Whether to build Tracy as a static library" OFF)
     FetchContent_Declare (
